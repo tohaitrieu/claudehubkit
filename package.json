@@ -1,6 +1,6 @@
 {
   "name": "claudehubkit",
-  "version": "1.0.3",
+  "version": "1.0.0",
   "description": "Claude + GitHub Kit - Manage GitHub issues with Claude Code",
   "main": "src/index.js",
   "bin": {

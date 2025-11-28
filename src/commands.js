@@ -13,22 +13,24 @@ class CommandsManager {
   }
 
   /**
-   * Xóa commands cũ của claudehubkit (chỉ thư mục chk)
+   * Xóa commands cũ và file không hợp lệ trong thư mục chk
    */
   cleanOldCommands() {
-    // Danh sách các thư mục cũ có thể tồn tại (từ các version trước)
-    const oldFolderNames = ['chk', 'gckit', 'claudehubkit'];
     const claudeCommandsDir = path.join(this.projectPath, '.claude', 'commands');
+    
+    // Danh sách các thư mục cũ có thể tồn tại (từ các version trước)
+    const oldFolderNames = ['gckit', 'claudehubkit'];
     
     let cleaned = false;
     
+    // Xóa các thư mục tên cũ
     for (const folderName of oldFolderNames) {
       const oldPath = path.join(claudeCommandsDir, folderName);
       
       if (fs.existsSync(oldPath)) {
         try {
           fs.rmSync(oldPath, { recursive: true, force: true });
-          console.log(chalk.dim(`  Đã xóa: .claude/commands/${folderName}/`));
+          console.log(chalk.dim(`  Đã xóa thư mục cũ: ${folderName}/`));
           cleaned = true;
         } catch (error) {
           console.log(chalk.yellow(`  ⚠️ Không thể xóa ${folderName}: ${error.message}`));
@@ -36,36 +38,47 @@ class CommandsManager {
       }
     }
     
-    // Xóa các file .js cũ không đúng format (nếu có trong thư mục đích)
+    // Kiểm tra thư mục chk hiện tại
     if (fs.existsSync(this.commandsPath)) {
       const files = fs.readdirSync(this.commandsPath);
+      
       for (const file of files) {
-        // Xóa file .js (không phải command hợp lệ)
-        if (file.endsWith('.js')) {
-          const filePath = path.join(this.commandsPath, file);
+        const filePath = path.join(this.commandsPath, file);
+        const stat = fs.statSync(filePath);
+        
+        // Xóa thư mục con (không nên có trong commands)
+        if (stat.isDirectory()) {
           try {
-            fs.unlinkSync(filePath);
-            console.log(chalk.dim(`  Đã xóa file cũ: ${file}`));
+            fs.rmSync(filePath, { recursive: true, force: true });
+            console.log(chalk.dim(`  Đã xóa thư mục: ${file}/`));
             cleaned = true;
           } catch (error) {
             // Ignore
           }
+          continue;
         }
         
-        // Kiểm tra file .md có đúng format không
-        if (file.endsWith('.md')) {
-          const filePath = path.join(this.commandsPath, file);
-          const content = fs.readFileSync(filePath, 'utf8');
-          
-          // Nếu không có frontmatter (---), xóa đi
-          if (!content.startsWith('---')) {
-            try {
-              fs.unlinkSync(filePath);
-              console.log(chalk.dim(`  Đã xóa file không đúng format: ${file}`));
-              cleaned = true;
-            } catch (error) {
-              // Ignore
-            }
+        // Xóa file không phải .md
+        if (!file.endsWith('.md')) {
+          try {
+            fs.unlinkSync(filePath);
+            console.log(chalk.dim(`  Đã xóa: ${file}`));
+            cleaned = true;
+          } catch (error) {
+            // Ignore
+          }
+          continue;
+        }
+        
+        // Kiểm tra file .md có đúng format (có frontmatter)
+        const content = fs.readFileSync(filePath, 'utf8');
+        if (!content.startsWith('---')) {
+          try {
+            fs.unlinkSync(filePath);
+            console.log(chalk.dim(`  Đã xóa (format cũ): ${file}`));
+            cleaned = true;
+          } catch (error) {
+            // Ignore
           }
         }
       }
@@ -93,17 +106,67 @@ class CommandsManager {
         fs.mkdirSync(claudeCommandsDir, { recursive: true });
       }
 
-      // Clone fresh
-      const git = simpleGit();
-      await git.clone(repo, this.commandsPath, ['--depth', '1']);
+      // Clone to temp directory first
+      const tempDir = path.join(this.projectPath, '.claude', '.temp-chk-clone');
       
-      // Remove .git folder from cloned repo
-      const gitFolder = path.join(this.commandsPath, '.git');
-      if (fs.existsSync(gitFolder)) {
-        fs.rmSync(gitFolder, { recursive: true, force: true });
+      // Clean temp if exists
+      if (fs.existsSync(tempDir)) {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+
+      // Clone repo
+      const git = simpleGit();
+      await git.clone(repo, tempDir, ['--depth', '1']);
+      
+      // Create commands directory
+      if (!fs.existsSync(this.commandsPath)) {
+        fs.mkdirSync(this.commandsPath, { recursive: true });
       }
       
-      spinner.succeed('Commands đã được tải về!');
+      // Copy only .md files from temp to commands directory
+      const files = fs.readdirSync(tempDir);
+      let copiedCount = 0;
+      
+      for (const file of files) {
+        if (file.endsWith('.md') && file !== 'README.md') {
+          const srcPath = path.join(tempDir, file);
+          const destPath = path.join(this.commandsPath, file);
+          
+          // Only copy if it's a file (not directory)
+          if (fs.statSync(srcPath).isFile()) {
+            fs.copyFileSync(srcPath, destPath);
+            copiedCount++;
+          }
+        }
+      }
+      
+      // Also check for commands in a 'commands' subdirectory (if repo has that structure)
+      const commandsSubdir = path.join(tempDir, 'commands');
+      if (fs.existsSync(commandsSubdir)) {
+        const subFiles = fs.readdirSync(commandsSubdir);
+        for (const file of subFiles) {
+          if (file.endsWith('.md')) {
+            const srcPath = path.join(commandsSubdir, file);
+            const destPath = path.join(this.commandsPath, file);
+            
+            if (fs.statSync(srcPath).isFile()) {
+              fs.copyFileSync(srcPath, destPath);
+              copiedCount++;
+            }
+          }
+        }
+      }
+      
+      // Clean up temp directory
+      fs.rmSync(tempDir, { recursive: true, force: true });
+      
+      if (copiedCount > 0) {
+        spinner.succeed(`Đã tải ${copiedCount} commands!`);
+      } else {
+        spinner.warn('Không tìm thấy commands trong repo. Tạo mặc định...');
+        await this.createDefaultCommands();
+        return true;
+      }
 
       // Save repo URL for future updates
       config.setCommandsRepo(repo);
