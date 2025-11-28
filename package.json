@@ -4,8 +4,8 @@
   "description": "Claude + GitHub Kit - Manage GitHub issues with Claude Code",
   "main": "src/index.js",
   "bin": {
-    "claudehubkit": "./bin/claudehubkit.js",
-    "chk": "./bin/claudehubkit.js"
+    "claudehubkit": "bin/claudehubkit.js",
+    "chk": "bin/claudehubkit.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
