@@ -1,0 +1,51 @@
+{
+  "name": "claudehubkit",
+  "version": "1.0.1",
+  "description": "Claude + GitHub Kit - Manage GitHub issues with Claude Code",
+  "main": "src/index.js",
+  "bin": {
+    "claudehubkit": "./bin/claudehubkit.js",
+    "chk": "./bin/claudehubkit.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "github",
+    "claude",
+    "cli",
+    "issues",
+    "automation",
+    "claude-code",
+    "ai"
+  ],
+  "author": {
+    "name": "To Trieu",
+    "email": "contact@tohaitrieu.net",
+    "url": "https://github.com/tohaitrieu"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tohaitrieu/claudehubkit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tohaitrieu/claudehubkit/issues"
+  },
+  "homepage": "https://github.com/tohaitrieu/claudehubkit#readme",
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "commander": "^11.1.0",
+    "inquirer": "^8.2.6",
+    "ora": "^5.4.1",
+    "simple-git": "^3.22.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md"
+  ]
+}
